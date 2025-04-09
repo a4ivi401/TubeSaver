@@ -3,55 +3,105 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>TubeSaver - Скачивание видео с YouTube</title>
+		<title>TubeSaver</title>
 		<link rel="stylesheet" href="styles.css" />
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+		/>
 	</head>
 	<body>
 		<div class="app-container">
-			<header>
-				<div class="logo">
-					<img src="assets/logo.svg" alt="TubeSaver Logo" class="logo-img" />
-					<h1>TubeSaver</h1>
+			<!-- Заголовок приложения с кнопками управления окном -->
+			<div class="titlebar">
+				<div class="titlebar-title">
+					<img src="assets/icon-small.png" alt="TubeSaver Logo" class="logo" />
+					<span>TubeSaver</span>
 				</div>
-			</header>
+				<div class="titlebar-controls">
+					<button id="minimize-btn" class="titlebar-button">
+						<i class="fas fa-window-minimize"></i>
+					</button>
+					<button id="maximize-btn" class="titlebar-button">
+						<i class="fas fa-window-maximize"></i>
+					</button>
+					<button id="close-btn" class="titlebar-button close">
+						<i class="fas fa-times"></i>
+					</button>
+				</div>
+			</div>
 
-			<main>
+			<!-- Главный контент -->
+			<div class="main-content">
+				<!-- Форма ввода URL -->
 				<div class="url-input-container">
 					<input
 						type="text"
-						id="url-input"
-						placeholder="Вставьте ссылку на YouTube видео"
-						autocomplete="off"
+						id="video-url"
+						placeholder="Вставьте URL видео с YouTube"
+						class="url-input"
 					/>
-					<button id="fetch-btn">Найти</button>
+					<button id="fetch-btn" class="fetch-button">
+						<i class="fas fa-search"></i> Получить
+					</button>
 				</div>
 
-				<div id="loading" class="loading hidden">
-					<div class="spinner"></div>
-					<p>Получение информации...</p>
-				</div>
-
-				<div id="error-message" class="error-message hidden">
-					<p>Произошла ошибка. Проверьте ссылку и попробуйте снова.</p>
-				</div>
-
-				<div id="video-info" class="video-info hidden">
+				<!-- Контейнер информации о видео -->
+				<div id="video-info" class="video-info-container hidden">
 					<div class="video-preview">
-						<img id="thumbnail" src="" alt="Превью видео" />
+						<img id="thumbnail" src="" alt="Превью видео" class="thumbnail" />
 						<div class="video-details">
-							<h2 id="video-title"></h2>
-							<p id="video-duration"></p>
+							<h2 id="video-title" class="video-title"></h2>
+							<p id="video-author" class="video-author"></p>
+							<p id="video-duration" class="video-duration"></p>
 						</div>
 					</div>
 
 					<div class="download-options">
-						<h3>Доступные форматы:</h3>
-						<div id="formats-list" class="formats-list"></div>
+						<h3>Доступные форматы</h3>
+						<div class="formats-container">
+							<select id="format-selector" class="format-selector">
+								<option value="" disabled selected>Выберите формат</option>
+							</select>
+							<div class="format-info">
+								<span id="format-size">Размер: 0 MB</span>
+								<span id="format-quality">Качество: N/A</span>
+							</div>
+						</div>
+
+						<div class="download-path">
+							<h3>Путь сохранения</h3>
+							<div class="path-selector">
+								<input
+									type="text"
+									id="output-path"
+									readonly
+									placeholder="Выберите директорию для сохранения"
+									class="path-input"
+								/>
+								<button id="browse-btn" class="browse-button">
+									<i class="fas fa-folder-open"></i> Обзор
+								</button>
+							</div>
+						</div>
+
+						<div class="filename-container">
+							<h3>Имя файла</h3>
+							<input type="text" id="filename" class="filename-input" />
+						</div>
+
+						<button id="download-btn" class="download-button" disabled>
+							<i class="fas fa-download"></i> Скачать
+						</button>
 					</div>
 				</div>
 
-				<div id="download-progress" class="download-progress hidden">
-					<h3>Скачивание...</h3>
+				<!-- Прогресс загрузки -->
+				<div
+					id="download-progress-container"
+					class="download-progress-container hidden"
+				>
+					<h3>Загрузка...</h3>
 					<div class="progress-bar-container">
 						<div id="progress-bar" class="progress-bar"></div>
 					</div>
@@ -61,17 +111,9 @@
 					</div>
 				</div>
 
-				<div id="download-complete" class="download-complete hidden">
-					<div class="success-icon">✓</div>
-					<h3>Скачивание завершено!</h3>
-					<p id="download-path"></p>
-					<button id="new-download-btn">Скачать другое видео</button>
-				</div>
-			</main>
-
-			<footer>
-				<p>TubeSaver © 2025</p>
-			</footer>
+				<!-- Сообщение о статусе -->
+				<div id="status-message" class="status-message"></div>
+			</div>
 		</div>
 
 		<script src="renderer.js"></script>

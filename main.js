@@ -1,118 +1,210 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const ytdl = require('ytdl-core')
-const ffmpeg = require('fluent-ffmpeg')
-const ffmpegPath = require('ffmpeg-static')
-const fetch = require('node-fetch')
-
-// Устанавливаем путь к ffmpeg
-ffmpeg.setFfmpegPath(ffmpegPath)
+const youtubeDl = require('youtube-dl-exec')
+const os = require('os')
 
 let mainWindow
+const binPath = path.join(os.tmpdir(), 'yt-dlp')
 
 function createWindow() {
 	mainWindow = new BrowserWindow({
-		width: 1000,
+		width: 900,
 		height: 700,
-		backgroundColor: '#2e2c29',
 		webPreferences: {
-			nodeIntegration: false,
-			contextIsolation: true,
-			preload: path.join(__dirname, 'preload.js'),
+			nodeIntegration: true,
+			contextIsolation: false,
+			enableRemoteModule: true,
 		},
 		icon: path.join(__dirname, 'assets/icon.png'),
+		titleBarStyle: 'hiddenInset',
+		frame: false,
 	})
 
 	mainWindow.loadFile('index.html')
-	// Раскомментируйте следующую строку для открытия DevTools
-	// mainWindow.webContents.openDevTools();
+	mainWindow.on('closed', () => {
+		mainWindow = null
+	})
 }
 
-app.whenReady().then(() => {
-	createWindow()
+app.whenReady().then(createWindow)
 
-	app.on('activate', function () {
-		if (BrowserWindow.getAllWindows().length === 0) createWindow()
-	})
-})
-
-app.on('window-all-closed', function () {
+app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') app.quit()
 })
 
-// Обработка IPC сообщений от рендерера
-ipcMain.handle('get-video-info', async (event, url) => {
+app.on('activate', () => {
+	if (mainWindow === null) createWindow()
+})
+
+// Обработка запросов на получение информации о видео
+ipcMain.on('get-video-info', async (event, url) => {
 	try {
-		const info = await ytdl.getInfo(url)
-		return {
-			title: info.videoDetails.title,
-			thumbnail:
-				info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]
-					.url,
-			duration: info.videoDetails.lengthSeconds,
-			formats: info.formats
-				.filter(format => format.container)
-				.map(format => ({
-					itag: format.itag,
-					quality: format.qualityLabel || format.quality,
-					container: format.container,
-					hasAudio: format.hasAudio,
-					hasVideo: format.hasVideo,
-					contentLength: format.contentLength,
-				})),
+		// Используем youtube-dl-exec для получения информации о видео
+		const info = await youtubeDl(url, {
+			dumpSingleJson: true,
+			noCheckCertificates: true,
+			noWarnings: true,
+			preferFreeFormats: true,
+			addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+			binPath,
+		})
+
+		// Форматируем данные для фронтенда
+		const formats = info.formats.map(format => ({
+			formatId: format.format_id,
+			formatNote: format.format_note,
+			ext: format.ext,
+			resolution: format.resolution,
+			fps: format.fps,
+			filesize: format.filesize,
+			tbr: format.tbr,
+			vcodec: format.vcodec,
+			acodec: format.acodec,
+			width: format.width,
+			height: format.height,
+		}))
+
+		const videoDetails = {
+			title: info.title,
+			author: info.uploader,
+			thumbnailUrl: info.thumbnail,
+			lengthSeconds: info.duration,
+			formats: formats.filter(format => format.filesize),
 		}
+
+		event.reply('video-info-result', { success: true, videoDetails })
 	} catch (error) {
 		console.error('Error getting video info:', error)
-		throw error
+		event.reply('video-info-result', { success: false, error: error.message })
 	}
 })
 
-ipcMain.handle('select-download-path', async (event, filename) => {
-	const result = await dialog.showSaveDialog({
-		title: 'Сохранить видео',
-		defaultPath: path.join(
-			app.getPath('downloads'),
-			sanitizeFilename(filename)
-		),
-		filters: [
-			{ name: 'Видео', extensions: ['mp4', 'webm'] },
-			{ name: 'Все файлы', extensions: ['*'] },
-		],
+// Обработка запросов на выбор директории
+ipcMain.on('select-directory', async event => {
+	const result = await dialog.showOpenDialog(mainWindow, {
+		properties: ['openDirectory'],
 	})
 
-	return result.canceled ? null : result.filePath
-})
-
-ipcMain.handle('download-video', async (event, { url, itag, outputPath }) => {
-	try {
-		return new Promise((resolve, reject) => {
-			const video = ytdl(url, { quality: itag })
-			let downloadedBytes = 0
-			let totalBytes = 0
-
-			video.on('progress', (_, downloaded, total) => {
-				downloadedBytes = downloaded
-				totalBytes = total
-				mainWindow.webContents.send('download-progress', { downloaded, total })
-			})
-
-			video
-				.pipe(fs.createWriteStream(outputPath))
-				.on('finish', () => {
-					resolve({ success: true, path: outputPath })
-				})
-				.on('error', err => {
-					reject(err)
-				})
-		})
-	} catch (error) {
-		console.error('Error downloading video:', error)
-		throw error
+	if (!result.canceled) {
+		event.reply('directory-selected', result.filePaths[0])
 	}
 })
 
-// Вспомогательная функция для очистки имени файла от недопустимых символов
-function sanitizeFilename(filename) {
-	return filename.replace(/[/\\?%*:|"<>]/g, '-')
-}
+// Обработка запросов на скачивание видео
+ipcMain.on(
+	'download-video',
+	async (event, { url, formatId, outputPath, filename }) => {
+		try {
+			if (!fs.existsSync(outputPath)) {
+				fs.mkdirSync(outputPath, { recursive: true })
+			}
+
+			const sanitizedFilename = filename.replace(/[/\\?%*:|"<>]/g, '-')
+			const fullPath = path.join(outputPath, sanitizedFilename)
+
+			// Создаем процесс для скачивания
+			const process = youtubeDl.exec(url, {
+				format: formatId,
+				output: `${fullPath}.%(ext)s`,
+				noCheckCertificates: true,
+				noWarnings: true,
+				preferFreeFormats: true,
+				addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+				progress: true,
+				binPath,
+			})
+
+			// Отслеживаем прогресс скачивания
+			if (process.stdout) {
+				let lastPercent = 0
+				let downloadedBytes = 0
+				let totalBytes = 0
+
+				process.stdout.on('data', data => {
+					const progressMatch = data.toString().match(/(\d+\.\d+)%/)
+					const sizeMatch = data
+						.toString()
+						.match(/(\d+\.\d+)(Ki|Mi|Gi)B\s+of\s+(\d+\.\d+)(Ki|Mi|Gi)B/)
+
+					if (progressMatch) {
+						const percentage = parseFloat(progressMatch[1])
+						if (percentage > lastPercent) {
+							lastPercent = percentage
+							event.reply('download-progress', {
+								percentage,
+								downloadedBytes,
+								totalBytes,
+							})
+						}
+					}
+
+					if (sizeMatch) {
+						const currentSize = parseFloat(sizeMatch[1])
+						const currentUnit = sizeMatch[2].toLowerCase()
+						const totalSize = parseFloat(sizeMatch[3])
+						const totalUnit = sizeMatch[4].toLowerCase()
+
+						// Конвертируем в байты
+						const units = { ki: 1024, mi: 1024 * 1024, gi: 1024 * 1024 * 1024 }
+						downloadedBytes = currentSize * units[currentUnit]
+						totalBytes = totalSize * units[totalUnit]
+					}
+				})
+			}
+
+			// Ждем завершения скачивания
+			const output = await process
+
+			// Находим скачанный файл
+			const finalPath = output.stdout.match(
+				/\[download\] (.+) has already been downloaded/
+			)
+			const downloadedPath = finalPath
+				? finalPath[1]
+				: `${fullPath}.${formatId.split('+')[0]}`
+
+			event.reply('download-complete', {
+				success: true,
+				filePath: downloadedPath,
+			})
+		} catch (error) {
+			console.error('Error downloading video:', error)
+			event.reply('download-complete', { success: false, error: error.message })
+		}
+	}
+)
+
+// Обработка запросов на закрытие, минимизацию и максимизацию окна
+ipcMain.on('window-control', (event, action) => {
+	switch (action) {
+		case 'minimize':
+			mainWindow.minimize()
+			break
+		case 'maximize':
+			if (mainWindow.isMaximized()) {
+				mainWindow.unmaximize()
+			} else {
+				mainWindow.maximize()
+			}
+			break
+		case 'close':
+			mainWindow.close()
+			break
+	}
+})
+
+// Загрузка youtube-dl при старте приложения
+app.whenReady().then(async () => {
+	try {
+		await youtubeDl.downloadFromGithub(binPath)
+		console.log('yt-dlp downloaded successfully')
+	} catch (error) {
+		console.error('Failed to download yt-dlp:', error)
+		dialog.showErrorBox(
+			'Error',
+			'Failed to download yt-dlp. Please check your internet connection and try again.'
+		)
+		app.quit()
+	}
+})

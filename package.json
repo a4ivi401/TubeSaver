@@ -1,66 +1,47 @@
 {
-	"name": "tube-saver",
-	"productName": "TubeSaver",
+	"name": "tubesaver",
 	"version": "1.0.0",
 	"description": "Приложение для скачивания видео с YouTube",
 	"main": "main.js",
 	"scripts": {
 		"start": "electron .",
-		"pack": "electron-builder --dir",
-		"dist": "electron-builder",
-		"dist:all": "electron-builder -mwl"
+		"build": "electron-builder",
+		"package-win": "electron-builder --win",
+		"package-mac": "electron-builder --mac",
+		"package-linux": "electron-builder --linux"
 	},
-	"author": "a4ivi4",
+	"author": "",
 	"license": "MIT",
 	"devDependencies": {
 		"electron": "^29.0.0",
 		"electron-builder": "^24.9.1"
 	},
-	"dependencies": {
-		"ffmpeg-static": "^5.2.0",
-		"fluent-ffmpeg": "^2.1.2",
-		"node-fetch": "^2.7.0",
-		"ytdl-core": "^4.11.5"
-	},
 	"build": {
-		"appId": "com.a4ivi4.tubesaver",
+		"appId": "com.tubesaver.app",
 		"productName": "TubeSaver",
-		"mac": {
-			"category": "public.app-category.utilities",
-			"target": [
-				"dmg",
-				"zip"
-			]
-		},
-		"win": {
-			"target": [
-				"nsis",
-				"portable"
-			]
-		},
-		"linux": {
-			"target": [
-				"AppImage",
-				"deb"
-			],
-			"category": "Utility"
-		},
 		"directories": {
 			"output": "dist"
 		},
 		"files": [
 			"**/*",
-			"!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-			"!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
-			"!**/node_modules/*.d.ts",
-			"!**/node_modules/.bin",
-			"!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
-			"!.editorconfig",
-			"!**/._*",
-			"!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
-			"!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
-			"!**/{appveyor.yml,.travis.yml,circle.yml}",
-			"!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
-		]
+			"!dist/**/*",
+			"!build/**/*",
+			"!node_modules/**/*"
+		],
+		"win": {
+			"target": "nsis",
+			"icon": "assets/icon.ico"
+		},
+		"mac": {
+			"target": "dmg",
+			"icon": "assets/icon.icns"
+		},
+		"linux": {
+			"target": "AppImage",
+			"icon": "assets/icon.png"
+		}
+	},
+	"dependencies": {
+		"youtube-dl-exec": "^3.0.20"
 	}
 }

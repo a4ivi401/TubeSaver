@@ -1,13 +1,5 @@
-<!-- assets/icon.svg - иконка для сборки приложения -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2979ff" />
-      <stop offset="100%" stop-color="#1565c0" />
-    </linearGradient>
-  </defs>
-  <rect x="32" y="96" width="448" height="320" rx="64" fill="url(#gradient)" />
-  <polygon points="216,176 216,336 336,256" fill="white" />
-  <path d="M400,400 L300,300" stroke="white" stroke-width="32" stroke-linecap="round" />
-  <circle cx="400" cy="400" r="48" fill="#ff5252" stroke="white" stroke-width="16" />
+  <rect width="512" height="512" rx="50" fill="#2b5dea"/>
+  <path d="M380 256c0 5.82-1.12 11.58-3.3 17.05-2.19 5.47-5.31 10.52-9.25 14.95-3.93 4.43-8.69 8.31-14.07 11.46-5.38 3.15-11.38 5.54-17.68 7.04l71.6 83.1H370.7l-63.6-80.4h-43v80.4H228V142.4h93.1c11.89 0 22.59 2.27 32.1 6.8 9.51 4.54 17.61 10.58 24.3 18.15 6.69 7.57 11.83 16.24 15.4 26.05 3.57 9.8 5.1 20.12 5.1 30.95v31.65zM228 192v100h71.2c15.12 0 27.24-4.34 36.37-13.03 9.12-8.69 13.68-20.36 13.68-35.02v-3.9c0-14.66-4.56-26.33-13.68-35.02-9.12-8.69-21.25-13.03-36.37-13.03H228z" fill="white"/>
+  <path d="M152 200.9l-54 36v-36H82v150.2h16v-93.8l54 36v57.8h16V200.9h-16z" fill="white"/>
 </svg>
